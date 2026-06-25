@@ -1,0 +1,26 @@
+# Node
+node_modules/
+dist/
+.env
+*.log
+npm-debug.log*
+
+# Go
+ast-engine/bin/
+ast-engine/*.exe
+
+# React
+web-dashboard/node_modules/
+web-dashboard/dist/
+web-dashboard/.env
+
+# Docker
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+api-gateway/.env

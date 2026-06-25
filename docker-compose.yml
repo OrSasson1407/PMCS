@@ -1,0 +1,54 @@
+﻿services:
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - '3010:3000'
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://pmcs:pmcs@postgres:5432/pmcs
+      - JWT_SECRET=change_me_in_production_please
+      - AST_ENGINE_URL=http://ast-engine:50051
+    depends_on:
+      - postgres
+      - redis
+
+  ast-engine:
+    build: ./ast-engine
+    ports:
+      - '50052:50051'
+    environment:
+      - PORT=50051
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://pmcs:pmcs@postgres:5432/pmcs
+    depends_on:
+      - postgres
+      - redis
+
+  web-dashboard:
+    build: ./web-dashboard
+    ports:
+      - '8080:80'
+    depends_on:
+      - api-gateway
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=pmcs
+      - POSTGRES_PASSWORD=pmcs
+      - POSTGRES_DB=pmcs
+    ports:
+      - '5436:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6386:6379'
+
+volumes:
+  postgres_data:
