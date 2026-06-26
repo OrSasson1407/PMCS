@@ -7,6 +7,7 @@ import webhookRouter from './routes/webhook';
 import riskRouter from './routes/risk';
 import astRouter from './routes/ast';
 import authRouter from './routes/auth';
+import reposRouter from './routes/repos';
 import { checkDbConnection } from './services/db';
 import { checkRedisConnection } from './services/redis';
 
@@ -33,6 +34,7 @@ app.use('/auth', authRouter);
 
 // Protected routes
 app.use('/webhooks', authenticate, webhookRouter);
+app.use('/repos', authenticate, reposRouter);
 app.use('/repos', authenticate, riskRouter);
 app.use('/ast', authenticate, astRouter);
 
