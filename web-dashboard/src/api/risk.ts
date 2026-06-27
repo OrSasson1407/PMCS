@@ -15,6 +15,18 @@ export interface BranchRiskResponse {
   source: string;
 }
 
+export interface Repo {
+  id:             string;
+  vcs_id:         string;
+  name:           string;
+  default_branch: string;
+}
+
+export const fetchRepos = async (): Promise<Repo[]> => {
+  const response = await apiClient.get<{ repos: Repo[] }>('/repos');
+  return response.data.repos;
+};
+
 export const fetchBranchRisks = async (repoId: string): Promise<BranchRisk[]> => {
   const response = await apiClient.get<BranchRiskResponse>(
     `/repos/${repoId}/risk/branches`
@@ -45,4 +57,22 @@ export const triggerOnDemandAnalysis = async (
     payload
   );
   return response.data;
+};
+
+export interface RiskEvent {
+  id:                string;
+  branch_a_id:       string;
+  branch_b_id:       string;
+  branch_a_name?:    string;
+  branch_b_name?:    string;
+  probability_score: number;
+  status:            'OPEN' | 'RESOLVED_MANUAL' | 'RESOLVED_AI';
+  created_at:        string;
+}
+
+export const fetchRiskHistory = async (repoId: string): Promise<RiskEvent[]> => {
+  const response = await apiClient.get<{ events: RiskEvent[] }>(
+    `/repos/${repoId}/risk/history`
+  );
+  return response.data.events;
 };

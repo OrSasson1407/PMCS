@@ -12,6 +12,7 @@ import { checkDbConnection } from './services/db';
 import { checkRedisConnection } from './services/redis';
 import { generalLimiter, authLimiter, webhookLimiter } from './middleware/rateLimiter';
 import { httpLogger } from './middleware/logger';
+import { verifyGitHubSignature } from './middleware/webhookAuth';
 
 dotenv.config();
 
@@ -37,7 +38,7 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/auth', authLimiter, authRouter);
 
 // Protected routes
-app.use('/webhooks', webhookLimiter, authenticate, webhookRouter);
+app.use('/webhooks', webhookLimiter, verifyGitHubSignature, authenticate, webhookRouter);
 app.use('/repos', authenticate, reposRouter);
 app.use('/repos', authenticate, riskRouter);
 app.use('/ast', authenticate, astRouter);

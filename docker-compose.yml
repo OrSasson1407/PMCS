@@ -4,12 +4,13 @@
     ports:
       - '3010:3000'
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=3000
       - REDIS_URL=redis://redis:6379
       - DATABASE_URL=postgresql://pmcs:pmcs@postgres:5432/pmcs
       - JWT_SECRET=change_me_in_production_please
       - AST_ENGINE_URL=http://ast-engine:50051
+      - GITHUB_WEBHOOK_SECRET=pmcs-webhook-secret-dev
     depends_on:
       postgres:
         condition: service_healthy

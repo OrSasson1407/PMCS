@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import History from './pages/History';
 import { getStoredToken } from './api/auth';
 
 const queryClient = new QueryClient({
@@ -18,6 +19,7 @@ const App = () => (
       <Routes>
         <Route path="/login"     element={<Login />} />
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/history"   element={<PrivateRoute><History /></PrivateRoute>} />
         <Route path="*"          element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

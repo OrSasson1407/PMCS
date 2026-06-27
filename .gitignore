@@ -24,3 +24,6 @@ Thumbs.db
 # Environment files
 .env
 api-gateway/.env
+
+# Production secrets
+.env.production

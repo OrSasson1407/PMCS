@@ -65,4 +65,38 @@ router.get('/:repo_id/risk/branches', async (req: AuthenticatedRequest, res: Res
   }
 });
 
+
+// ── GET /repos/:repo_id/risk/history ─────────────────────────────────────────
+router.get('/:repo_id/risk/history', async (req: AuthenticatedRequest, res: Response) => {
+  const { repo_id } = req.params;
+  const limit = parseInt(req.query.limit as string || '50', 10);
+
+  try {
+    const result = await query(
+      `SELECT
+        re.id,
+        re.branch_a_id,
+        re.branch_b_id,
+        ba.name AS branch_a_name,
+        bb.name AS branch_b_name,
+        re.probability_score,
+        re.status,
+        re.created_at
+      FROM risk_events re
+      JOIN branches ba ON ba.id = re.branch_a_id
+      JOIN branches bb ON bb.id = re.branch_b_id
+      WHERE ba.repo_id = $1
+         OR bb.repo_id = $1
+      ORDER BY re.created_at DESC
+      LIMIT $2`,
+      [repo_id, limit]
+    );
+
+    return res.status(200).json({ events: result.rows });
+  } catch (err) {
+    console.error('[risk] Failed to fetch risk history:', err);
+    return res.status(500).json({ error: 'Failed to retrieve risk history' });
+  }
+});
+
 export default router;
