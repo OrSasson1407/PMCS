@@ -16,16 +16,26 @@ import (
 const defaultPort = "50051"
 
 type HealthResponse struct {
-    Status    string `json:"status"`
-    Service   string `json:"service"`
-    Timestamp string `json:"timestamp"`
+    Status    string `json:"status"    `
+    Service   string `json:"service"   `
+    Timestamp string `json:"timestamp" `
 }
 
+// ── AnalyzeRequest supports both file paths and raw source content ─────────────
 type AnalyzeRequest struct {
-    BaseCommit   string   `json:"base_commit"`
-    TargetCommit string   `json:"target_commit"`
-    BaseFiles    []string `json:"base_files"`
-    TargetFiles  []string `json:"target_files"`
+    BaseCommit    string         `json:"base_commit"    `
+    TargetCommit  string         `json:"target_commit"  `
+    BaseFiles     []string       `json:"base_files"     `
+    TargetFiles   []string       `json:"target_files"   `
+    BaseContent   []SourceFile   `json:"base_content"   `
+    TargetContent []SourceFile   `json:"target_content" `
+}
+
+// ── SourceFile carries raw source code with its language ──────────────────────
+type SourceFile struct {
+    Name     string `json:"name"     `
+    Language string `json:"language" `
+    Content  string `json:"content"  `
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +63,9 @@ func analyzeHandler(w http.ResponseWriter, r *http.Request) {
     ctx := context.Background()
 
     var baseFiles []*parser.ParsedFile
+    var targetFiles []*parser.ParsedFile
+
+    // ── Parse from file paths (existing behavior) ─────────────────────────────
     for _, path := range req.BaseFiles {
         parsed, err := parser.ParseFile(ctx, path)
         if err != nil {
@@ -62,7 +75,6 @@ func analyzeHandler(w http.ResponseWriter, r *http.Request) {
         baseFiles = append(baseFiles, parsed)
     }
 
-    var targetFiles []*parser.ParsedFile
     for _, path := range req.TargetFiles {
         parsed, err := parser.ParseFile(ctx, path)
         if err != nil {
@@ -70,6 +82,33 @@ func analyzeHandler(w http.ResponseWriter, r *http.Request) {
             continue
         }
         targetFiles = append(targetFiles, parsed)
+    }
+
+    // ── Parse from raw source content (new behavior) ──────────────────────────
+    for _, src := range req.BaseContent {
+        parsed, err := parser.ParseContent(ctx, []byte(src.Content), src.Language)
+        if err != nil {
+            log.Printf("[ast-engine] Failed to parse base content %s: %v", src.Name, err)
+            continue
+        }
+        parsed.FilePath = src.Name
+        baseFiles = append(baseFiles, parsed)
+    }
+
+    for _, src := range req.TargetContent {
+        parsed, err := parser.ParseContent(ctx, []byte(src.Content), src.Language)
+        if err != nil {
+            log.Printf("[ast-engine] Failed to parse target content %s: %v", src.Name, err)
+            continue
+        }
+        parsed.FilePath = src.Name
+        targetFiles = append(targetFiles, parsed)
+    }
+
+    // ── Require at least one file on each side ────────────────────────────────
+    if len(baseFiles) == 0 || len(targetFiles) == 0 {
+        http.Error(w, "both base and target must have at least one parseable file or content block", http.StatusBadRequest)
+        return
     }
 
     result, err := analyzer.CompareASTs(req.BaseCommit, req.TargetCommit, baseFiles, targetFiles)
