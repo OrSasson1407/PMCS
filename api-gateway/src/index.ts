@@ -10,6 +10,8 @@ import authRouter from './routes/auth';
 import reposRouter from './routes/repos';
 import { checkDbConnection } from './services/db';
 import { checkRedisConnection } from './services/redis';
+import { generalLimiter, authLimiter, webhookLimiter } from './middleware/rateLimiter';
+import { httpLogger } from './middleware/logger';
 
 dotenv.config();
 
@@ -19,6 +21,8 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
+app.use(httpLogger);
+app.use(generalLimiter);
 
 // Public routes
 app.get('/health', (req: Request, res: Response) => {
@@ -30,10 +34,10 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // Auth routes (public)
-app.use('/auth', authRouter);
+app.use('/auth', authLimiter, authRouter);
 
 // Protected routes
-app.use('/webhooks', authenticate, webhookRouter);
+app.use('/webhooks', webhookLimiter, authenticate, webhookRouter);
 app.use('/repos', authenticate, reposRouter);
 app.use('/repos', authenticate, riskRouter);
 app.use('/ast', authenticate, astRouter);

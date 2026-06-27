@@ -4,15 +4,24 @@
     ports:
       - '3010:3000'
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - PORT=3000
       - REDIS_URL=redis://redis:6379
       - DATABASE_URL=postgresql://pmcs:pmcs@postgres:5432/pmcs
       - JWT_SECRET=change_me_in_production_please
       - AST_ENGINE_URL=http://ast-engine:50051
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
   ast-engine:
     build: ./ast-engine
@@ -23,15 +32,32 @@
       - REDIS_URL=redis://redis:6379
       - DATABASE_URL=postgresql://pmcs:pmcs@postgres:5432/pmcs
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:50051/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
 
   web-dashboard:
     build: ./web-dashboard
     ports:
       - '8080:80'
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
 
   postgres:
     image: postgres:15-alpine
@@ -44,11 +70,25 @@
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pmcs -d pmcs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
     ports:
       - '6386:6379'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
 
 volumes:
   postgres_data:

@@ -13,7 +13,7 @@ RUN CGO_ENABLED=1 go build -o bin/server ./cmd/server
 
 FROM alpine:3.19
 
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat wget
 
 WORKDIR /app
 
