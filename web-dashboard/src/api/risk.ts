@@ -1,37 +1,40 @@
 import apiClient from './client';
 
-// ?? Types matching API Spec response schema ???????????????????????????????????
 export interface BranchRisk {
-  branch_name: string;
-  risk_score: number;
+  branch_name:          string;
+  risk_score:           number;
+  latest_commit?:       string;
+  last_updated?:        string;
+  open_conflict_count?: number;
   overlapping_branches: string[];
-  critical_files: string[];
+  critical_files:       string[];
 }
 
 export interface BranchRiskResponse {
-  data: BranchRisk[];
+  data:   BranchRisk[];
+  source: string;
 }
 
-// ?? Fetch branch risk list for a given repo ???????????????????????????????????
 export const fetchBranchRisks = async (repoId: string): Promise<BranchRisk[]> => {
   const response = await apiClient.get<BranchRiskResponse>(
-    \/repos/\/risk/branches\
+    `/repos/${repoId}/risk/branches`
   );
   return response.data.data;
 };
 
-// ?? Trigger on-demand AST analysis ???????????????????????????????????????????
 export interface OnDemandAnalysisRequest {
-  base_commit: string;
+  base_commit:   string;
   target_commit: string;
 }
 
 export interface OnDemandAnalysisResponse {
-  base_commit: string;
-  target_commit: string;
-  ast_diff_tree: unknown[];
-  semantic_conflicts: unknown[];
-  message?: string;
+  base_commit:       string;
+  target_commit:     string;
+  probability_score: number;
+  ast_diff_tree:     unknown[];
+  critical_files:    string[];
+  risk_event_id:     string | null;
+  source:            string;
 }
 
 export const triggerOnDemandAnalysis = async (
