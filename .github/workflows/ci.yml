@@ -1,0 +1,116 @@
+name: PMCS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Job 1: TypeScript compile check ────────────────────────────────────────
+  api-gateway-check:
+    name: API Gateway TypeScript
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api-gateway
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: api-gateway/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript compile check
+        run: npx tsc --noEmit
+
+  # ── Job 2: Go build check ──────────────────────────────────────────────────
+  ast-engine-check:
+    name: AST Engine Go Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ast-engine
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+
+      - name: Install CGO dependencies
+        run: sudo apt-get install -y gcc
+
+      - name: Go build check
+        run: CGO_ENABLED=1 go build ./...
+
+      - name: Go vet
+        run: go vet ./...
+
+  # ── Job 3: Docker Compose smoke test ──────────────────────────────────────
+  smoke-test:
+    name: Docker Compose Smoke Test
+    runs-on: ubuntu-latest
+    needs: [api-gateway-check, ast-engine-check]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env file for CI
+        run: |
+          echo "NODE_ENV=development" >> .env
+          echo "PORT=3000" >> .env
+          echo "POSTGRES_PASSWORD=pmcs_ci_test" >> .env
+          echo "REDIS_PASSWORD=redis_ci_test" >> .env
+          echo "JWT_SECRET=ci_test_jwt_secret_minimum_32_chars_x" >> .env
+          echo "GITHUB_WEBHOOK_SECRET=ci_test_webhook_secret" >> .env
+
+      - name: Build and start stack
+        run: docker compose up --build -d
+
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for services..."
+          sleep 30
+          docker compose ps
+
+      - name: Test api-gateway health
+        run: |
+          curl -f http://localhost:3010/health || exit 1
+          echo "api-gateway healthy"
+
+      - name: Test ast-engine health
+        run: |
+          curl -f http://localhost:50052/health || exit 1
+          echo "ast-engine healthy"
+
+      - name: Test web-dashboard
+        run: |
+          curl -f http://localhost:8080 || exit 1
+          echo "web-dashboard healthy"
+
+      - name: Test auth endpoint
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:3010/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"test@pmcs.dev","org_name":"NonExistent"}')
+          echo "Auth response: $RESPONSE"
+          echo "$RESPONSE" | grep -q "not found" && echo "Auth endpoint working" || exit 1
+
+      - name: Print logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Teardown
+        if: always()
+        run: docker compose down -v
